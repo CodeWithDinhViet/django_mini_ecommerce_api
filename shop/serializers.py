@@ -26,7 +26,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
     
     
-class CategorSerializer(serializers.ModelSerializer):
+class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = [
@@ -36,7 +36,7 @@ class CategorSerializer(serializers.ModelSerializer):
             'is_active',
             'created_at',
         ]
-        read_only_fields = ['id', 'creted_at']
+        read_only_fields = ['id', 'created_at']
         
         
 class ProductSerializer(serializers.ModelSerializer):
