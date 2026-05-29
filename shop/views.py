@@ -56,7 +56,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         return queryset
     
     def get_permissions(self):
-        if self.action in ['list', 'retreive']:
+        if self.action in ['list', 'retrieve']:
             return [AllowAny()]
         
         return [IsAdminUser()]
