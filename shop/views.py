@@ -1,12 +1,17 @@
 from django.shortcuts import render
-from rest_framework import viewsets, generics
-from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework import viewsets, generics, status
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from django.contrib.auth.models import User
-from .models import Category, Product
+
+from .models import Category, Product, Cart, CartItem
 from .serializers import (
     RegisterSerializer,
     CategorySerializer,
     ProductSerializer,
+    CartSerializer,
+    CartItemSerializer,
 )
 
 
@@ -60,3 +65,95 @@ class ProductViewSet(viewsets.ModelViewSet):
             return [AllowAny()]
         
         return [IsAdminUser()]
+    
+    
+class CartViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
+    
+    def list(self, request):
+        cart, created = Cart.objects.get_or_create(user=request.user)
+        serializer = CartSerializer(cart)
+        return Response(serializer.data)
+    
+    
+class CartItemViewSet(viewsets.ModelViewSet):
+    serializer_class = CartItemSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        cart, created = Cart.objects.get_or_create(user=self.request.user)
+        return CartItem.objects.filter(cart=cart)
+    
+    def create(self, request, *args, **kwargs):
+        cart, created = Cart.objects.get_or_create(user=request.user)
+        
+        product_id = request.data.get('product')
+        quantity = int(request.data.get('quantity', 1))
+        
+        if quantity <= 0:
+            return Response(
+                {'quantity': 'Quantity must be greater than 0'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            product = Product.objects.get(id=product_id, is_active=True)
+        except Product.DoesNotExist:
+            return Response(
+                {'product': 'Product not found or inactive'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
+        cart_item, item_created = CartItem.objects.get_or_create(
+            cart=cart,
+            product=product,
+            defaults={'quantity': quantity}
+        )
+        
+        if not item_created:
+            new_quantity = cart_item.quantity + quantity
+            
+            if new_quantity > product.stock:
+                return Response(
+                    {'quantity': 'Quantity exceeds available stock.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            cart_item.quantity = new_quantity
+            cart_item.save()
+        else:
+            if quantity > product.stock:
+                cart_item.delete()
+                return Response(
+                    {'quantity': 'Quantity exceeds available stock'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        serializer = self.get_serializer(cart_item)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    def update(self, request, *args, **kwargs):
+        cart_item = self.get_object()
+        quantity = int(request.data.get('quantity', cart_item.quantity))
+        
+        if quantity <= 0:
+            return Response(
+                {'quantity': 'Quantity must be greater than 0'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if quantity > cart_item.product.stock:
+            return Response(
+                {'quantity': 'Quantity exceeds available stock'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        cart_item.quantity = quantity
+        cart_item.save()
+        
+        serializer = self.get_serializer(cart_item)
+        return Response(serializer.data)
+        
+    def partial_update(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+        
