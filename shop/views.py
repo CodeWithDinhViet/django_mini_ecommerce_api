@@ -70,7 +70,8 @@ class ProductViewSet(viewsets.ModelViewSet):
 class CartViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
     
-    def list(self, request):
+    @action(detail=False, methods=['get'], url_path='my-cart')
+    def my_cart(self, request):
         cart, created = Cart.objects.get_or_create(user=request.user)
         serializer = CartSerializer(cart)
         return Response(serializer.data)
