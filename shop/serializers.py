@@ -171,7 +171,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
         ]
         
         
-class OrderSrializer(serializers.ModelSerializer):
+class OrderSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)
     items = OrderItemSerializer(many=True, read_only=True)
     
@@ -184,7 +184,7 @@ class OrderSrializer(serializers.ModelSerializer):
             'total_amount',
             'shipping_address',
             'phone_number',
-            'npte',
+            'note',
             'items',
             'created_at',
             'updated_at',

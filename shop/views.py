@@ -5,13 +5,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 
-from .models import Category, Product, Cart, CartItem
+from .models import Category, Product, Cart, CartItem, Order, OrderItem
 from .serializers import (
     RegisterSerializer,
     CategorySerializer,
     ProductSerializer,
     CartSerializer,
     CartItemSerializer,
+    OrderSerializer,
 )
 
 
@@ -158,3 +159,95 @@ class CartItemViewSet(viewsets.ModelViewSet):
     def partial_update(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
         
+        
+class OrderViewSet(viewsets.ModelViewSet):
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = Order.objects.all()
+        
+        if not self.request.user.is_staff:
+            queryset = queryset.filter(user=self.request.user)
+            
+        return queryset
+    
+    def create(self, request, *args, **kwargs):
+        return Response(
+            {'detail': 'Please use /api/orders/checkout/ to create an order'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+        
+    @action(detail=False, methods=['post'], url_path='checkout')
+    def checkout(self, request):
+        cart, created = Cart.objects.get_or_create(user=request.user)
+        cart_items = cart.items.all()
+        
+        if not cart_items.exists():
+            return Response(
+                {'detail': 'Cart is empty'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        shipping_address = request.data.get('shipping_address')
+        phone_number = request.data.get('phone_number')
+        note = request.data.get('note', '')
+        
+        if not shipping_address:
+            return Response(
+                {'shipping_address': 'This field is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+            
+        if not phone_number:
+            return Response(
+                {'phone_number': 'This field is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        for item in cart_items:
+            if item.quantity > item.product.stock:
+                return Response(
+                    {
+                        'detail': f'Not enough stock for product: {item.product.name}. '
+                        f'Available stock: {item.product.stock}.'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        order = Order.objects.create(
+            user=request.user,
+            shipping_address=shipping_address,
+            phone_number=phone_number,
+            note=note,
+            total_amount=0
+        )
+        
+        total_amount = 0
+        
+        for item in cart_items:
+            product = item.product
+            subtotal = product.price * item.quantity
+            
+            OrderItem.objects.create(
+                order=order,
+                product=product,
+                product_name=product.name,
+                price=product.price,
+                quantity=item.quantity,
+                subtotal=subtotal
+            )
+            
+            product.stock -= item.quantity
+            product.save()
+            
+            total_amount += subtotal
+            
+        order.total_amount = total_amount
+        order.save()
+        
+        cart_items.delete()
+        
+        serializer = self.get_serializer(order)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
