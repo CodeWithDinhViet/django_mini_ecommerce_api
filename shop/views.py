@@ -251,3 +251,24 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(order)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['patch'], url_path='cancel')
+    def cancel(self, request, pk=None):
+        order = self.get_object()
+        
+        if order.status != 'pending':
+            return Response(
+                {'detail': 'Only pending orders can be cancelled'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        for item in order.items.all():
+            if item.product:
+                item.product.stock += item.quantity
+                item.product.save()
+            
+        order.status = 'cancelled'
+        order.save()
+        
+        serializer = self.get_serializer(order)
+        return Response(serializer.data)
