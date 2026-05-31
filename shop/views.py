@@ -4,8 +4,9 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.auth.models import User
+from .models import Category, Product, Cart, CartItem, Order, OrderItem, Review
 
-from .models import Category, Product, Cart, CartItem, Order, OrderItem
+from .permissions import IsOwnerOrAdminOrReadOnly
 from .serializers import (
     RegisterSerializer,
     CategorySerializer,
@@ -13,6 +14,7 @@ from .serializers import (
     CartSerializer,
     CartItemSerializer,
     OrderSerializer,
+    ReviewSerializer,
 )
 
 
@@ -288,9 +290,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         if new_status not in valid_statuses:
             return Response(
-                {
-                'status': 'Invalid status. Valid statuses are: pending, paid, shipping, completed, cancelled'
-                },
+                {'status': 'Invalid status. Valid statuses are: pending, paid, shipping, completed, cancelled'},
                 status=status.HTTP_400_BAD_REQUEST
             )
             
@@ -305,3 +305,21 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(order)
         return Response(serializer.data)
+    
+
+class ReviewViewSet(viewsets.ModelViewSet):
+    serializer_class = ReviewSerializer
+    permission_classes = [IsOwnerOrAdminOrReadOnly]
+    
+    def get_queryset(self):
+        queryset = Review.objects.all().order_by('-created_at')
+        
+        product = self.request.query_params.get('product')
+        
+        if product:
+            queryset = queryset.filter(product_id=product)
+            
+        return queryset
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
