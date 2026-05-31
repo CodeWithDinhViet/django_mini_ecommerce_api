@@ -272,3 +272,36 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(order)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['patch'], url_path='update-status')
+    def update_status(self, request, pk=None):
+        if not request.user.is_staff:
+            return Response(
+                {'detail': 'Only admin users can update order status'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        order = self.get_object()
+        new_status = request.data.get('status')
+        
+        valid_statuses = ['pending', 'paid', 'shipping', 'completed', 'cancelled']
+        
+        if new_status not in valid_statuses:
+            return Response(
+                {
+                'status': 'Invalid status. Valid statuses are: pending, paid, shipping, completed, cancelled'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if order.status in ['completed', 'cancelled']:
+            return Response(
+                {'detail': 'Cannot update status of compeleted or cancelled orders'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        order.status = new_status
+        order.save()
+        
+        serializer = self.get_serializer(order)
+        return Response(serializer.data)
