@@ -734,14 +734,3 @@ Add README documentation
 * Add automated tests
 * Add API documentation with Swagger or drf-spectacular
 
-## CV Description
-
-Mini E-commerce API — Django REST Framework
-
-* Built a backend-only Mini E-commerce REST API using Django REST Framework and JWT Authentication.
-* Designed relational models for categories, products, carts, cart items, orders, order items, and reviews.
-* Implemented product management, shopping cart, checkout workflow, order status management, product reviews, and admin reports.
-* Added role-based permissions for normal users and admin users.
-* Implemented business validations such as stock checking, order cancellation rules, purchase-based reviews, and one-review-per-product rule.
-* Used Django ORM for filtering, relationship queries, and aggregation reports.
-* Tested all APIs with Postman and managed source code using Git/GitHub.
