@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework import viewsets, generics, status
+from rest_framework import viewsets, generics, status, serializers
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -322,4 +322,29 @@ class ReviewViewSet(viewsets.ModelViewSet):
         return queryset
     
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        product = serializer.validated_data.get('product')
+        user = self.request.user
+        
+        has_purchased = OrderItem.objects.filter(
+            order__user=user,
+            order__status='completed',
+            product=product
+        ).exists()
+        
+        if not has_purchased:
+            raise serializers.ValidationError(
+                {'detail': 'You can only review products you have purchased and completed'}
+            )
+        
+        already_reviewed = Review.objects.filter(
+            user=user,
+            product=product
+        ).exists()
+        
+        if already_reviewed:
+            raise serializers.ValidationError(
+                {'detail': 'You have already reviewed this product'}
+            )
+            
+        serializer.save(user=user)
+        
