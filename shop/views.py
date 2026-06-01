@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from .models import Category, Product, Cart, CartItem, Order, OrderItem, Review
-
+from django.db.models import Sum, Count
 from .permissions import IsOwnerOrAdminOrReadOnly
 from .serializers import (
     RegisterSerializer,
@@ -348,3 +348,32 @@ class ReviewViewSet(viewsets.ModelViewSet):
             
         serializer.save(user=user)
         
+        
+class ReportViewSet(viewsets.ViewSet):
+    permission_classes = [IsAdminUser]
+    
+    @action(detail=False, methods=['get'], url_path='summary')
+    def summary(self, request):
+        total_orders = Order.objects.count()
+        
+        completed_orders = Order.objects.filter(status='completed')
+        
+        total_revenue = completed_orders.aggregate(
+            total=Sum('total_amount')
+        )['total'] or 0
+        
+        total_products = Product.objects.count()
+        
+        low_stock_products = Product.objects.filter(stock__lte=5).count()
+        
+        total_reviews = Review.objects.count()
+        
+        data = {
+            'total_order':total_orders,
+            'total_revenue':total_revenue,
+            'total_products':total_products,
+            'low_stock_products':low_stock_products,
+            'total_reviews':total_reviews,
+        }
+        
+        return Response(data)

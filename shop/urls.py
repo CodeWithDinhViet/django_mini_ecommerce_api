@@ -8,6 +8,7 @@ from .views import (
     CartItemViewSet,
     OrderViewSet,
     ReviewViewSet,
+    ReportViewSet,
 )
 
 router = DefaultRouter()
@@ -23,6 +24,8 @@ router.register('cart/items', CartItemViewSet, basename='cart-item')
 router.register('orders', OrderViewSet, basename='order')
 
 router.register('reviews', ReviewViewSet, basename='review')
+
+router.register('report', ReportViewSet, basename='report')
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
