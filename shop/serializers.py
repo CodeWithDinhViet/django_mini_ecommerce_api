@@ -68,7 +68,7 @@ class ProductSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         
-    def get_average_rating(self, obj):
+    def get_average_rating(self, obj) -> float:
         reviews = obj.reviews.all()
         
         if not reviews.exists():
@@ -221,3 +221,11 @@ class ReviewSerializer(serializers.ModelSerializer):
             'product_name',
             'created_at',
         ]
+        
+        
+class ReportSummarySerializer(serializers.Serializer):
+    total_orders = serializers.IntegerField()
+    total_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+    total_products = serializers.IntegerField()
+    low_stock_products = serializers.IntegerField()
+    total_reviews = serializers.IntegerField()

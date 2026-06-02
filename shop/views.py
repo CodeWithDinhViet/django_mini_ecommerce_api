@@ -15,6 +15,7 @@ from .serializers import (
     CartItemSerializer,
     OrderSerializer,
     ReviewSerializer,
+    ReportSummarySerializer,
 )
 
 
@@ -72,7 +73,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     
 class CartViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
-    
+    serializer_class = CartSerializer
     @action(detail=False, methods=['get'], url_path='my-cart')
     def my_cart(self, request):
         cart, created = Cart.objects.get_or_create(user=request.user)
@@ -348,10 +349,10 @@ class ReviewViewSet(viewsets.ModelViewSet):
             
         serializer.save(user=user)
         
-        
+
 class ReportViewSet(viewsets.ViewSet):
     permission_classes = [IsAdminUser]
-    
+    serializer_class = ReportSummarySerializer
     @action(detail=False, methods=['get'], url_path='summary')
     def summary(self, request):
         total_orders = Order.objects.count()
@@ -376,4 +377,5 @@ class ReportViewSet(viewsets.ViewSet):
             'total_reviews':total_reviews,
         }
         
+        serializer = ReportSummarySerializer(data)
         return Response(data)
