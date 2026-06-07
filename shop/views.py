@@ -18,6 +18,9 @@ from .serializers import (
     ReportSummarySerializer,
 )
 
+from .filters import ProductFilter, OrderFilter, ReviewFilter
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -38,29 +41,17 @@ class CategoryViewSet(viewsets.ModelViewSet):
     
 class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = ProductFilter
+    search_fields = ['name', 'description']
+    ordering_fields = ['price', 'created_at', 'stock']
+    ordering = ['-created_at']
     
     def get_queryset(self):
         queryset = Product.objects.all().order_by('-created_at')
         
         if not self.request.user.is_authenticated or not self.request.user.is_staff:
             queryset = queryset.filter(is_active=True)
-            
-        search = self.request.query_params.get('search')
-        category = self.request.query_params.get('category')
-        min_price = self.request.query_params.get('min_price')
-        max_price = self.request.query_params.get('max_price')
-        
-        if search:
-            queryset = queryset.filter(name__icontains=search)
-            
-        if category:
-            queryset = queryset.filter(category_id=category)
-            
-        if min_price:
-            queryset = queryset.filter(price__gte=min_price)
-            
-        if max_price:
-            queryset = queryset.filter(price__lte=max_price)
             
         return queryset
     
@@ -166,9 +157,13 @@ class CartItemViewSet(viewsets.ModelViewSet):
 class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = OrderFilter
+    ordering_fields = ['created_at', 'total_amount']
+    ordering = ['-created_at']
     
     def get_queryset(self):
-        queryset = Order.objects.all()
+        queryset = Order.objects.all().order_by('created_at')
         
         if not self.request.user.is_staff:
             queryset = queryset.filter(user=self.request.user)
@@ -311,15 +306,13 @@ class OrderViewSet(viewsets.ModelViewSet):
 class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
     permission_classes = [IsOwnerOrAdminOrReadOnly]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = ReviewFilter
+    ordering_fields = ['created_at', 'rating']
+    ordering = ['-created_at']
     
     def get_queryset(self):
         queryset = Review.objects.all().order_by('-created_at')
-        
-        product = self.request.query_params.get('product')
-        
-        if product:
-            queryset = queryset.filter(product_id=product)
-            
         return queryset
     
     def perform_create(self, serializer):
